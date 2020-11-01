@@ -36,9 +36,14 @@ ytdl = youtube_dl.YoutubeDL(ytops)
 
 @click.command()
 @click.argument('file', type=click.Path(exists=True))
+@click.option('-o', '--output',
+              default='.',
+              type=click.Path(file_okay=False))
 @click.option('-v', '--verbose', is_flag=True)
-def main(file, verbose):
+def main(file, output, verbose):
     file_path = Path(file)
+    output_path = Path(output)
+
     with file_path.open('r') as f:
         links = f.read().splitlines()
 
@@ -78,7 +83,7 @@ def main(file, verbose):
             info = download(index, link, verbose)
             if info:
                 info = {**info, **forced_info}
-                result = mux(index, info)
+                result = mux(index, info, output_path)
                 if result:
                     with done_path.open('a+') as f:
                         f.write(str(index) + '\n')
@@ -113,7 +118,7 @@ def download(id, url, verbose=False, rewrite_info=False):
 def alpha3(alpha2):
     return pycountry.languages.get(alpha_2=alpha2[0:2]).alpha_3
 
-def mux(id, info):
+def mux(id, info, output):
     fix_aac = False
 
     paths_video = []
@@ -222,11 +227,11 @@ def mux(id, info):
             info['episode_number'] += info['episode_offset']
 
         title = '{series} - {season_number}x{episode_number:02d} - {episode}'.format(**info)
-        path_final = Path('{}/{}.mkv'.format(info['season_number'], title))
+        path_final = Path('{}/{}/{}.mkv'.format(output.absolute(), info['season_number'], title))
 
     if path_final.is_file():
         path_final.unlink()
-    path_final.parent.mkdir(exist_ok=True)
+    path_final.parent.mkdir(exist_ok=True, parents=True)
 
     cmd = 'ffmpeg'
     for path_video in paths_video:
